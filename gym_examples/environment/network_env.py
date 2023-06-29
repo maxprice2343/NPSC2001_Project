@@ -13,7 +13,7 @@ WHITE = (255,255,255)
 RED = (255,0,0)
 BLUE = (0,0,255)
 
-class ProjEnv(gym.Env):
+class NetworkEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
 
     def __init__(self, render_mode=None, size=10, num_nodes=4):
