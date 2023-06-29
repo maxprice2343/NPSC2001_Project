@@ -1,12 +1,17 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+import pygame
 
 WINDOW_SIZE = 512
 DISTANCE = 1
 REWARD_RECEIVED = 5
 REWARD_MISSED = -10
 REWARD_STEP = -1
+
+WHITE = (255,255,255)
+RED = (255,0,0)
+BLUE = (0,0,255)
 
 class ProjEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
@@ -46,6 +51,7 @@ class ProjEnv(gym.Env):
 
         # Randomly generates node locations until they are not equal to the
         # agent location or other node locations
+        self._node_locations = []
         for i in range(self.num_nodes):
             self._node_locations[i] = self._generate_random_position(
                 excludes=(self._agent_location + self._node_locations[:i])
@@ -86,6 +92,75 @@ class ProjEnv(gym.Env):
             self._render_frame()
 
         return observation, reward, terminated, False, info
+
+    def _render_frame(self):
+        # Initializes pygame, display, and clock if they haven't been already
+        if self.window is None and self.render_mode == "human":
+            pygame.init()
+            pygame.display.init()
+            self.window = pygame.display.set_mode((self.window_size, self.window_size))
+        if self.clock is None and self.render_mode == "human":
+            self.clock = pygame.time.Clock()
+        
+        canvas = pygame.Surface((self.window_size, self.window_size))
+        canvas.fill(WHITE)
+        # The size of each cell in pixels
+        pix_square_size = (self.window_size / self.size)
+
+        # Drawing the nodes
+        for i in range(self.num_nodes):
+            pygame.draw.rect(
+                canvas,
+                RED,
+                pygame.Rect(
+                    pix_square_size * self._node_locations[i],
+                    (pix_square_size, pix_square_size)
+                )
+            )
+
+        # Drawing the agent
+        pygame.draw.circle(
+            canvas,
+            BLUE,
+            (self._agent_location + 0.5) * pix_square_size,
+            pix_square_size / 3
+        )
+
+        # Add grid lines
+        for i in range(self.size + 1):
+            # Horizontal lines
+            pygame.draw.line(
+                canvas,
+                0,
+                (0, pix_square_size * i),
+                (self.window_size, pix_square_size * i),
+                width=3
+            )
+            # Vertical lines
+            pygame.draw.line(
+                canvas,
+                0,
+                (pix_square_size * i, 0),
+                (pix_square_size * i, self.window_size),
+                width=3
+            )
+        
+        if self.render_mode == "human":
+            # Copies the canvas to the visible window
+            self.window.blit(canvas, canvas.get_rect())
+            pygame.event.pump()
+            pygame.display.update()
+
+            # Keeps rendering at the predfined framerate
+            self.clock.tick(self.metadata["render_fps"])
+
+    def close(self):
+        """
+        Closes remaining environment resources
+        """
+        if self.window is not None:
+            pygame.display.quit()
+            pygame.quit()
 
     def _generate_random_position(self, excludes=[]):
         """
