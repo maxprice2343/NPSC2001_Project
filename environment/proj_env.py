@@ -3,6 +3,10 @@ from gymnasium import spaces
 import numpy as np
 
 WINDOW_SIZE = 512
+DISTANCE = 1
+REWARD_RECEIVED = 5
+REWARD_MISSED = -10
+REWARD_STEP = -1
 
 class ProjEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
@@ -40,13 +44,15 @@ class ProjEnv(gym.Env):
         # Randomly generates the agent location in the form [x,y]
         self._agent_location = self._generate_random_position()
 
-        # Randomly generates node locations until they are not equal to the agent location
-        # or other node locations
+        # Randomly generates node locations until they are not equal to the
+        # agent location or other node locations
         for i in range(self.num_nodes):
             self._node_locations[i] = self._generate_random_position(
                 excludes=(self._agent_location + self._node_locations[:i])
             )
-        
+
+        self._count = 0
+
         observation = self._get_obs()
 
         if self.render_mode == "human":
@@ -54,7 +60,39 @@ class ProjEnv(gym.Env):
 
         return observation
 
+    # Takes an action and computes the state of the environment after the
+    # action
+    def step(self, action):
+        direction = self._action_to_direction(action)
+        reward = 0
+
+        # Moves the agent
+        self._agent_location = np.clip(
+            self._agent_location + direction, 0, self.size - 1
+        )
+        # Checks whether the agent is within range of any of the nodes and
+        # increments the count variable if so
+        for i in range(self.num_nodes):
+            if self._get_distance(i) <= DISTANCE:
+                self._count = self._count + 1
+                reward += REWARD_RECEIVED
+        terminated = self._count == self.num_nodes
+        reward += REWARD_STEP
+
+        observation = self._get_obs()
+        info = self._get_obs()
+
+        if self.render_mode == "human":
+            self._render_frame()
+
+        return observation, reward, terminated, False, info
+
     def _generate_random_position(self, excludes=[]):
+        """
+        Generates a random position (x,y) within the range 0 - self.size - 1.
+        Argument is a list of positions that the generated position should not
+        be equal to.
+        """
         location = self.np_random.integers(0, self.size, size=2, dtype=int)
 
         while location in excludes:
@@ -63,14 +101,28 @@ class ProjEnv(gym.Env):
         return location
 
     def _get_obs(self):
+        """
+        Returns the environment observations
+        """
         return {
             "agent": self._agent_location,
             "nodes": self._node_locations,
             "active": self._active_nodes
         }
+    
+    def _get_info(self):
+        """
+        Returns a list containing the distances between the agent and all nodes
+        """
+        return [self._get_distance(i) for i in range(self.num_nodes)]
 
     def _get_distance(self, node_number):
-        return np.linalg.norm(self._agent_location - self._node_locations[node_number])
+        """
+        Returns the distance between the agent and a given node
+        """
+        return np.linalg.norm(
+            self._agent_location - self._node_locations[node_number]
+        )
 
     def _action_to_direction(self, action):
         """
