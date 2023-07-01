@@ -26,8 +26,8 @@ class NetworkEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "nodes": spaces.Sequence(spaces.Box(0, size - 1, shape=(2,), dtype=int)),
-                "active": spaces.MultiBinary(num_nodes)
+                "nodes": spaces.Box(0, size - 1, shape=(self.num_nodes,2,), dtype=int)
+                #"active": spaces.MultiBinary(num_nodes)
             }
         )
         # Agent can move up, down, left, or right
@@ -41,8 +41,10 @@ class NetworkEnv(gym.Env):
         self.window = None
         self.clock = None
     
-    # Initiates a new episode.
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
+        """
+        Initializes a new episode of the environment
+        """
         # Seeds the random number generator
         super().reset(seed=seed)
 
@@ -51,24 +53,28 @@ class NetworkEnv(gym.Env):
 
         # Randomly generates node locations until they are not equal to the
         # agent location or other node locations
-        self._node_locations = []
+        self._node_locations = np.ones((self.num_nodes, 2), dtype=int)
         for i in range(self.num_nodes):
             self._node_locations[i] = self._generate_random_position(
-                excludes=(self._agent_location + self._node_locations[:i])
+                excludes=np.concatenate((self._agent_location[np.newaxis, :], self._node_locations[:i]), axis=0)
             )
 
         self._count = 0
 
         observation = self._get_obs()
+        print(observation)
+        info = self._get_info()
 
         if self.render_mode == "human":
             self._render_frame()
 
-        return observation
+        return observation, info
 
-    # Takes an action and computes the state of the environment after the
-    # action
     def step(self, action):
+        """
+        Takes in an action and computes the state of the environment after
+        the action is applied
+        """
         direction = self._action_to_direction(action)
         reward = 0
 
@@ -93,7 +99,19 @@ class NetworkEnv(gym.Env):
 
         return observation, reward, terminated, False, info
 
+    def close(self):
+        """
+        Closes remaining environment resources
+        """
+        if self.window is not None:
+            pygame.display.quit()
+            pygame.quit()
+
     def _render_frame(self):
+        """
+        Renders a frame (using pygame) representing the state of the
+        environment and updates the window
+        """
         # Initializes pygame, display, and clock if they haven't been already
         if self.window is None and self.render_mode == "human":
             pygame.init()
@@ -154,14 +172,6 @@ class NetworkEnv(gym.Env):
             # Keeps rendering at the predfined framerate
             self.clock.tick(self.metadata["render_fps"])
 
-    def close(self):
-        """
-        Closes remaining environment resources
-        """
-        if self.window is not None:
-            pygame.display.quit()
-            pygame.quit()
-
     def _generate_random_position(self, excludes=[]):
         """
         Generates a random position (x,y) within the range 0 - self.size - 1.
@@ -181,15 +191,15 @@ class NetworkEnv(gym.Env):
         """
         return {
             "agent": self._agent_location,
-            "nodes": self._node_locations,
-            "active": self._active_nodes
+            "nodes": self._node_locations
+            #"active": self._active_nodes
         }
     
     def _get_info(self):
         """
         Returns a list containing the distances between the agent and all nodes
         """
-        return [self._get_distance(i) for i in range(self.num_nodes)]
+        return {"distances": self._get_distance(i) for i in range(self.num_nodes)}  
 
     def _get_distance(self, node_number):
         """
