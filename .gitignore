@@ -1,0 +1,8 @@
+#Ignores all files in .env
+.env/
+
+#Ignores testing code
+test.py
+
+#Ignores pycache files
+__pycache__
