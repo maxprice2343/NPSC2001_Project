@@ -1,3 +1,10 @@
+"""
+Defines the environment that the RL agent interacts with.
+Code adapted from https://github.com/Farama-Foundation/gym-examples.
+Environment is adapted from gym-examples/gym-examples/envs/grid_world.py
+environment.
+"""
+
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -53,7 +60,7 @@ class NetworkEnv(gym.Env):
 
         # Randomly generates node locations until they are not equal to the
         # agent location or other node locations
-        self._node_locations = np.ones((self.num_nodes, 2), dtype=int)
+        self._node_locations = np.empty((self.num_nodes, 2), dtype=int)
         for i in range(self.num_nodes):
             self._node_locations[i] = self._generate_random_position(
                 excludes=np.concatenate((self._agent_location[np.newaxis, :], self._node_locations[:i]), axis=0)
@@ -62,7 +69,6 @@ class NetworkEnv(gym.Env):
         self._count = 0
 
         observation = self._get_obs()
-        print(observation)
         info = self._get_info()
 
         if self.render_mode == "human":
@@ -131,7 +137,8 @@ class NetworkEnv(gym.Env):
                 canvas,
                 RED,
                 pygame.Rect(
-                    pix_square_size * self._node_locations[i],
+                    (pix_square_size * self._node_locations[i][0],
+                     pix_square_size * self._node_locations[i][1]),
                     (pix_square_size, pix_square_size)
                 )
             )
@@ -172,7 +179,7 @@ class NetworkEnv(gym.Env):
             # Keeps rendering at the predfined framerate
             self.clock.tick(self.metadata["render_fps"])
 
-    def _generate_random_position(self, excludes=[]):
+    def _generate_random_position(self, excludes=np.array([])):
         """
         Generates a random position (x,y) within the range 0 - self.size - 1.
         Argument is a list of positions that the generated position should not
@@ -180,10 +187,30 @@ class NetworkEnv(gym.Env):
         """
         location = self.np_random.integers(0, self.size, size=2, dtype=int)
 
-        while location in excludes:
+        # While the generated location is in the excludes list, a new location
+        # is generated
+        while self._in(location, excludes):
             location = self.np_random.integers(0, self.size, size=2, dtype=int)
-        
+
         return location
+
+    def _in(self, x: np.ndarray, y: np.ndarray):
+        """
+        Checks whether a numpy array x is an element of a numpy array y
+        """
+        res = False
+        # Ensures that the elements of y are the same shape as x
+        if y.ndim == x.ndim + 1:
+            if y.shape[y.ndim-1] == x.shape[x.ndim-1]:
+                res = False
+                idx = 0
+                # Iterates through the elements of y and compares them to x
+                while idx < y.shape[0] and res == False:
+                    sub = y[idx]
+                    res = np.all(np.equal(sub, x))
+                    idx += 1
+
+        return res
 
     def _get_obs(self):
         """
