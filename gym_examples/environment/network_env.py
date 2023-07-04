@@ -19,6 +19,7 @@ REWARD_STEP = -1
 WHITE = (255,255,255)
 RED = (255,0,0)
 BLUE = (0,0,255)
+GREEN = (0,255,0)
 
 class NetworkEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
@@ -33,8 +34,8 @@ class NetworkEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "nodes": spaces.Box(0, size - 1, shape=(self.num_nodes,2,), dtype=int)
-                #"active": spaces.MultiBinary(num_nodes)
+                "nodes": spaces.Box(0, size - 1, shape=(self.num_nodes,2,), dtype=int),
+                "active": spaces.Box(0, self.num_nodes, shape=(1,), dtype=int)
             }
         )
         # Agent can move up, down, left, or right
@@ -66,7 +67,9 @@ class NetworkEnv(gym.Env):
                 excludes=np.concatenate((self._agent_location[np.newaxis, :], self._node_locations[:i]), axis=0)
             )
 
-        self._count = 0
+        # Activates a random node. A value of -1 indicates no nodes are active
+        self._active = np.random.randint(-1, self.num_nodes, 1)
+        self.reward = 0
 
         observation = self._get_obs()
         info = self._get_info()
@@ -81,29 +84,30 @@ class NetworkEnv(gym.Env):
         Takes in an action and computes the state of the environment after
         the action is applied
         """
+        self.reward += REWARD_STEP
+
         direction = self._action_to_direction(action)
-        reward = 0
 
         # Moves the agent
         self._agent_location = np.clip(
             self._agent_location + direction, 0, self.size - 1
         )
-        # Checks whether the agent is within range of any of the nodes and
-        # increments the count variable if so
+        # Checks whether the agent is within range of the active node and
+        # increments the reward if so
         for i in range(self.num_nodes):
-            if self._get_distance(i) <= DISTANCE:
-                self._count = self._count + 1
-                reward += REWARD_RECEIVED
-        terminated = self._count == self.num_nodes
-        reward += REWARD_STEP
+            if self._active == i:
+                if self._get_distance(i) <= DISTANCE:
+                    self.reward += REWARD_RECEIVED
+                    self._active = np.random.randint(-1, self.num_nodes)
 
+        terminated = np.all(np.equal(self._active, np.array([-1])))
         observation = self._get_obs()
         info = self._get_obs()
 
         if self.render_mode == "human":
             self._render_frame()
 
-        return observation, reward, terminated, False, info
+        return observation, self.reward, terminated, False, info
 
     def close(self):
         """
@@ -133,9 +137,14 @@ class NetworkEnv(gym.Env):
 
         # Drawing the nodes
         for i in range(self.num_nodes):
+            if i == self._active:
+                colour = GREEN
+            else:
+                colour = RED
+
             pygame.draw.rect(
                 canvas,
-                RED,
+                colour,
                 pygame.Rect(
                     (pix_square_size * self._node_locations[i][0],
                      pix_square_size * self._node_locations[i][1]),
@@ -218,8 +227,8 @@ class NetworkEnv(gym.Env):
         """
         return {
             "agent": self._agent_location,
-            "nodes": self._node_locations
-            #"active": self._active_nodes
+            "nodes": self._node_locations,
+            "active": self._active
         }
     
     def _get_info(self):
