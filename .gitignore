@@ -6,3 +6,6 @@ test.py
 
 #Ignores pycache files
 __pycache__
+
+#Ignores files generated from installing gym_examples as a package
+gym_examples.egg-info
