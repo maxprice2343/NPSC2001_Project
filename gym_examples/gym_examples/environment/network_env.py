@@ -16,6 +16,8 @@ REWARD_RECEIVED = 5
 REWARD_MISSED = -10
 REWARD_STEP = -1
 
+INACTIVE = np.array([-1, -1])
+
 WHITE = (255,255,255)
 RED = (255,0,0)
 BLUE = (0,0,255)
@@ -67,12 +69,17 @@ class NetworkEnv(gym.Env):
             )
 
         # Activates a random node. A value of -1 indicates no nodes are active
-        active_number = np.random.randint(-1, self.num_nodes, 1)
-        self._active = self._node_locations[active_number] if active_number > -1 else None
+        active_number = np.random.randint(-1, self.num_nodes)
+        self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
+        print(f"node_locations:\n{self._node_locations}\n")
+        print(f"active_number:\n{active_number}\n")
+        print(f"active:\n{self._active}\n")
         self.reward = 0
 
         observation = self._get_obs()
         info = self._get_info()
+
+        print(observation)
 
         if self.render_mode == "human":
             self._render_frame()
@@ -94,13 +101,16 @@ class NetworkEnv(gym.Env):
         )
         # Checks whether the agent is within range of the active node and
         # increments the reward if so
-        for i in range(self.num_nodes):
-            if self._active == i:
-                if self._get_distance(i) <= DISTANCE:
+        node_num = 0
+        for node in self._node_locations:
+            if np.all(np.equal(node, self._active)):
+                if self._get_distance(node_num) <= DISTANCE:
                     self.reward += REWARD_RECEIVED
-                    self._active = np.random.randint(-1, self.num_nodes)
+                    active_number = np.random.randint(-1, self.num_nodes)
+                    self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
+            node_num += 1
 
-        terminated = self._active == None
+        terminated = np.all(np.equal(self._active, INACTIVE))
         observation = self._get_obs()
         info = self._get_obs()
 
@@ -136,11 +146,8 @@ class NetworkEnv(gym.Env):
         pix_square_size = (self.window_size / self.size)
 
         # Drawing the nodes
-        for i in range(self.num_nodes):
-            if i == self._active:
-                colour = GREEN
-            else:
-                colour = RED
+        for node in self._node_locations:
+            colour = GREEN if np.all(np.equal(node, self._active)) else RED
 
             pygame.draw.rect(
                 canvas,
