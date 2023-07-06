@@ -34,8 +34,7 @@ class NetworkEnv(gym.Env):
         self.observation_space = spaces.Dict(
             {
                 "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "nodes": spaces.Box(0, size - 1, shape=(self.num_nodes,2,), dtype=int),
-                "active": spaces.Box(0, self.num_nodes, shape=(1,), dtype=int)
+                "active": spaces.Box(0, size - 1, shape=(2,), dtype=int)
             }
         )
         # Agent can move up, down, left, or right
@@ -68,7 +67,8 @@ class NetworkEnv(gym.Env):
             )
 
         # Activates a random node. A value of -1 indicates no nodes are active
-        self._active = np.random.randint(-1, self.num_nodes, 1)
+        active_number = np.random.randint(-1, self.num_nodes, 1)
+        self._active = self._node_locations[active_number] if active_number > -1 else None
         self.reward = 0
 
         observation = self._get_obs()
@@ -100,7 +100,7 @@ class NetworkEnv(gym.Env):
                     self.reward += REWARD_RECEIVED
                     self._active = np.random.randint(-1, self.num_nodes)
 
-        terminated = np.all(np.equal(self._active, np.array([-1])))
+        terminated = self._active == None
         observation = self._get_obs()
         info = self._get_obs()
 
@@ -227,7 +227,6 @@ class NetworkEnv(gym.Env):
         """
         return {
             "agent": self._agent_location,
-            "nodes": self._node_locations,
             "active": self._active
         }
     
