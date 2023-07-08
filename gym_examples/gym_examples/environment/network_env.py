@@ -71,15 +71,12 @@ class NetworkEnv(gym.Env):
         # Activates a random node. A value of -1 indicates no nodes are active
         active_number = np.random.randint(-1, self.num_nodes)
         self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
-        print(f"node_locations:\n{self._node_locations}\n")
-        print(f"active_number:\n{active_number}\n")
-        print(f"active:\n{self._active}\n")
         self.reward = 0
 
         observation = self._get_obs()
         info = self._get_info()
 
-        print(observation)
+        print(f"reset obs: {observation}\n")
 
         if self.render_mode == "human":
             self._render_frame()
@@ -113,6 +110,8 @@ class NetworkEnv(gym.Env):
         terminated = np.all(np.equal(self._active, INACTIVE))
         observation = self._get_obs()
         info = self._get_obs()
+
+        print(f"step obs: {observation}\n")
 
         if self.render_mode == "human":
             self._render_frame()

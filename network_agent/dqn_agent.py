@@ -2,9 +2,9 @@ import tensorflow as tf
 import numpy as np
 
 class DqnAgent:
-    def __init__(self, state_dim, action_dim):
-        self.state_dim = state_dim
-        self.action_dim = action_dim
+    def __init__(self, state_shape, action_shape):
+        self.state_shape = state_shape
+        self.action_shape = action_shape
         self.q_net = self._build_dqn_model()
         self.target_q_net = self._build_dqn_model()
 
@@ -18,6 +18,7 @@ class DqnAgent:
         con = np.concatenate((state['agent'], state['active']))
         # Converts the numpy array representing the environment state to a
         # tensor
+        con = np.reshape(con, (1, 4))
         state_input = tf.convert_to_tensor(con, dtype=tf.float32)
         action_q = self.q_net(state_input)
         action = np.argmax(action_q.numpy()[0], axis=0)
@@ -28,6 +29,7 @@ class DqnAgent:
         Trains the DQN agent based on a batch of gameplay experiences
         """
         state_batch, next_state_batch, action_batch, reward_batch, done_batch = batch
+        print(f"state_batch:{state_batch}\n")
         current_q = self.q_net(state_batch)
         target_q = np.copy(current_q)
         next_q = self.target_q_net(next_state_batch)
@@ -41,7 +43,7 @@ class DqnAgent:
     def _build_dqn_model(self):
         q_net = tf.keras.Sequential()
         q_net.add(
-            tf.keras.Input(shape=(self.state_dim))
+            tf.keras.Input(shape=self.state_shape)
         )
         q_net.add(
             tf.keras.layers.Dense(64, activation='relu', kernel_initializer='he_uniform')
@@ -50,7 +52,7 @@ class DqnAgent:
             tf.keras.layers.Dense(32, activation='relu', kernel_initializer='he_uniform')
         )
         q_net.add(
-            tf.keras.layers.Dense(4, activation='linear', kernel_initializer='he_uniform')
+            tf.keras.layers.Dense(len(self.action_shape), activation='linear', kernel_initializer='he_uniform')
         )
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)

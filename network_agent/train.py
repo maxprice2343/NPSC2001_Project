@@ -29,7 +29,7 @@ def train_model(max_episodes=50000):
     Trains a DQN agent to optimize the network time efficiency 
     """
     env = gym.make("Network-v0")
-    agent = DqnAgent(4, 4)
+    agent = DqnAgent((4,), (4,))
     buffer = ReplayBuffer()
 
     for episode_count in range(max_episodes):
