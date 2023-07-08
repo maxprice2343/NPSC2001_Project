@@ -1,33 +1,36 @@
-import random
 import numpy as np
 from collections import deque
+from random import sample
 
-class ReplayBuffer:
-    def __init__(self):
-        self.gameplay_experiences = deque(maxlen=1000000)
+class transition:
+    """
+    Stores information about an environment state transition:
+    Current state, action, reward, next state, and terminated (if the
+    'next state' is terminal)
+    """
+    def __init__(self, state, action, reward, next_state, terminated):
+        self.state = state
+        self.action = action
+        self.reward = reward
+        self.next_state = next_state
+        self.terminated = terminated
 
+class replay_buffer:
+    """
+    A queue of transition objects that are used for network training
+    """
+    def __init__(self, buffer_size, batch_size):
+        self.batch_size = batch_size
 
-    def store_gameplay_experience(self, state, next_state, reward, action, done):
-        """
-        Stores a gameplay experience in the buffer
-        """
-        self.gameplay_experiences.append((state, next_state, reward, action, done))
-    
-    def sample_gameplay_batch(self):
-        """
-        Samples a batch of gameplay experiences
-        """
-        # The experience batch size is 128, or the number of experiences,
-        # whichever is smaller
-        batch_size = min(128, len(self.gameplay_experiences))
-        sampled_gameplay_batch = random.sample(self.gameplay_experiences, batch_size)
-        state_batch, next_state_batch, action_batch, reward_batch, done_batch = [], [], [], [], []
-        # Iterates through the sampled gameplay experiences and copies the
-        for gameplay_experience in sampled_gameplay_batch:
-            state_batch.append(gameplay_experience[0])
-            next_state_batch.append(gameplay_experience[1])
-            reward_batch.append(gameplay_experience[2])
-            action_batch.append(gameplay_experience[3])
-            done_batch.append(gameplay_experience[4])
+        self.buffer = deque(maxlen=buffer_size)
 
-        return np.array(state_batch), np.array(next_state_batch), action_batch, reward_batch, done_batch
+    def sample(self):
+        """
+        Returns a random sample from the buffer of length batch_size
+        """
+        s = None
+        # The buffer needs to have at least the number of elements in a batch
+        if len(self.buffer) >= self.batch_size:
+            s = sample(self.buffer, self.batch_size)
+        
+        return s
