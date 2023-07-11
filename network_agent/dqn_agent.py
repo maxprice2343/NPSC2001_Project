@@ -36,3 +36,150 @@ class dqn_agent:
 
         self.sum_rewards_episode = []
         self.actions_append = []
+
+    def create_network(self):
+        """
+        Creates the network and its layers
+        """
+        model = tf.keras.Sequential()
+        model.add(
+            tf.keras.layers.Dense(64, input_dim=self.state_dimension, activation='relu')
+        )
+        model.add(
+            tf.keras.layers.Dense(32, activation='relu')
+        )
+        model.add(
+            tf.keras.layers.Dense(self.action_dimension, activation='linear')
+        )
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001))
+
+        return model
+
+    def select_action(self, state, index):
+        """
+        Selects an action based on the current environment state
+        """
+        action = None
+
+        if index < 1:
+            action = np.random.choice(self.action_dimension)
+        
+        # A random float in the range [0.0, 1.0)
+        r = np.random.random()
+        if index > 200:
+            self.epsilon *= 0.999
+
+        # If r is less than epsilon, then the action is selected randomly,
+        # i.e., the agent will explore the environment
+        # Otherwise, the agent will select the optimal environment (based on
+        # reward)
+        if r < self.epsilon:
+            action = np.random.choice(self.action_dimension)
+        else:
+            q_values = self.main_network.predict(state.reshape(1,4))
+            # Returns the index where q_values has maximum values
+            action = np.random.choice(
+                np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
+            )
+
+    def train_network(self):
+        """
+        Trains the network
+        """
+        # If the replay buffer has at least 1 batch worth of elements then
+        # we train the model
+        batch_size = self.replay_buffer.batch_size
+        if(self.replay_buffer.length() > batch_size):
+            sample_batch = replay_buffer.sample()
+
+            current_state_batch = np.zeros(shape=(batch_size, 4))
+            next_state_batch = np.zeros(shape=(batch_size, 4))
+
+            for index, tup in enumerate(sample_batch):
+                current_state_batch[index, :] = tup[0]
+                next_state_batch[index, :] = tup[3]
+            
+            # Uses the target and main networks to predict q values
+            q_next_state_target_network = self.target_network.predict(next_state_batch)
+            q_current_state_main_network = self.main_network.predict(current_state_batch)
+
+            input_network = current_state_batch
+            output_network = np.zeros(shape=(batch_size, 2))
+
+            self.actions_append=[]
+            for index, t in enumerate(sample_batch):
+                if t.terminated:
+                    y = t.reward
+                else:
+                    y = t.reward + self.gamma * np.max(q_next_state_target_network[index])
+                
+                self.actions_append.append(t.action)
+
+                output_network[index] = q_current_state_main_network[index]
+
+                output_network[index, t.action] = y
+
+            # Trains the main network
+            self.main_network.fit(
+                input_network,
+                output_network,
+                batch_size=batch_size,
+                verbose = 0,
+                epochs=100
+            )
+
+            self.update_target_network_count += 1
+            if(self.update_target_network_count > (self.update_target_network_period - 1)):
+                # Copies the weights to the target network
+                self.target_network.set_weights(self.main_network.get_weights())
+                self.update_target_network_count = 0
+    
+    def training_episodes(self):
+        """
+        Runs the simulation 'num_episodes' number of times and stores the
+        results for training the network.
+        """
+        for index in range(self.num_episodes):
+            # Stores the rewards for each episode
+            rewards_episodes = []
+
+            (current_state, _) = self.env.reset()
+
+            terminal_state = False
+            while not terminal_state:
+                # Select an action based on the current state
+                action = self.select_action(current_state, index)
+
+                # Steps the environment and stores the reward
+                (next_state, reward, terminal_state, _, _) = self.env.step(action)
+                new_transition = transition(current_state, action, reward, next_state, terminal_state)
+                rewards_episodes.append(reward)
+
+                # Adds the new transition to the replay buffer
+                self.replay_buffer.append(new_transition)
+
+                # Trains the network
+                self.train_network()
+
+                # Sets the current state for the next step
+                current_state = next_state
+            
+            self.sum_rewards_episode.append(np.sum(rewards_episodes))
+    
+    def loss(self, y_true, y_pred):
+        """
+        Defines the loss function
+        y_true is the target and y_pred is predicted by the network
+        """
+        s1, s2 = y_true.shape
+
+        indices = np.zeros(shape=(s1,s2))
+        indices[:,0] = np.arange(s1),
+        indices[:,1] = self.actions_append
+
+        loss = tf.keras.losses.mean_squared_error(
+            tf.gather_nd(y_true, indices=indices.astype(int)),
+            tf.gather_nd(y_pred, indices=indices.astype(int))
+        )
+
+        return loss
