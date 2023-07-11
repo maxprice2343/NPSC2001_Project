@@ -34,3 +34,6 @@ class replay_buffer:
             s = sample(self.buffer, self.batch_size)
         
         return s
+
+    def length(self):
+        return len(self.buffer)
