@@ -9,3 +9,8 @@ __pycache__
 
 #Ignores files generated from installing gym_examples as a package
 gym_examples.egg-info
+
+# Ignores markdown file and Images
+Problem Description.md
+Problem Description.pdf
+Images/
