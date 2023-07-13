@@ -145,7 +145,7 @@ class NetworkEnv(gym.Env):
         pix_square_size = (self.window_size / self.size)
 
         # Drawing the nodes
-        for node in self._node_locations:
+        for i, node in enumerate(self._node_locations):
             colour = GREEN if np.all(np.equal(node, self._active)) else RED
 
             pygame.draw.rect(
