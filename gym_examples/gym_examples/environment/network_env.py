@@ -33,12 +33,7 @@ class NetworkEnv(gym.Env):
 
         # Observations consist of agent location, node locations, and currently
         # active node
-        self.observation_space = spaces.Dict(
-            {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "active": spaces.Box(0, size - 1, shape=(2,), dtype=int)
-            }
-        )
+        self.observation_space = spaces.Box(-1, self.size-1, (4,), dtype=int)
         # Agent can move up, down, left, or right
         self.action_space = spaces.Discrete(4)
 
@@ -109,7 +104,7 @@ class NetworkEnv(gym.Env):
 
         terminated = np.all(np.equal(self._active, INACTIVE))
         observation = self._get_obs()
-        info = self._get_obs()
+        info = self._get_info()
 
         print(f"step obs: {observation}\n")
 
@@ -231,10 +226,7 @@ class NetworkEnv(gym.Env):
         """
         Returns the environment observations
         """
-        return {
-            "agent": self._agent_location,
-            "active": self._active
-        }
+        return np.concatenate((self._agent_location, self._active))
     
     def _get_info(self):
         """
