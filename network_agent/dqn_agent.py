@@ -43,15 +43,15 @@ class dqn_agent:
         """
         model = tf.keras.Sequential()
         model.add(
-            tf.keras.layers.Dense(64, input_dim=self.state_dimension, activation='relu')
+            tf.keras.layers.Dense(4, input_dim=self.state_dimension, activation='relu')
         )
         model.add(
-            tf.keras.layers.Dense(32, activation='relu')
+            tf.keras.layers.Dense(4, activation='relu')
         )
         model.add(
             tf.keras.layers.Dense(self.action_dimension, activation='linear')
         )
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001))
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss=self.loss)
 
         return model
 
@@ -76,11 +76,13 @@ class dqn_agent:
         if r < self.epsilon:
             action = np.random.choice(self.action_dimension)
         else:
-            q_values = self.main_network.predict(state.reshape(1,4))
+            q_values = self.main_network.predict(state[None, :])
             # Returns the index where q_values has maximum values
             action = np.random.choice(
                 np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
             )
+
+        return action
 
     def train_network(self):
         """
@@ -90,14 +92,14 @@ class dqn_agent:
         # we train the model
         batch_size = self.replay_buffer.batch_size
         if(self.replay_buffer.length() > batch_size):
-            sample_batch = replay_buffer.sample()
+            sample_batch = self.replay_buffer.sample()
 
             current_state_batch = np.zeros(shape=(batch_size, 4))
             next_state_batch = np.zeros(shape=(batch_size, 4))
 
-            for index, tup in enumerate(sample_batch):
-                current_state_batch[index, :] = tup[0]
-                next_state_batch[index, :] = tup[3]
+            for index, tran in enumerate(sample_batch):
+                current_state_batch[index, :] = tran.state
+                next_state_batch[index, :] = tran.next_state
             
             # Uses the target and main networks to predict q values
             q_next_state_target_network = self.target_network.predict(next_state_batch)
@@ -107,17 +109,17 @@ class dqn_agent:
             output_network = np.zeros(shape=(batch_size, 2))
 
             self.actions_append=[]
-            for index, t in enumerate(sample_batch):
-                if t.terminated:
-                    y = t.reward
+            for index, tran in enumerate(sample_batch):
+                if tran.terminated:
+                    y = tran.reward
                 else:
-                    y = t.reward + self.gamma * np.max(q_next_state_target_network[index])
+                    y = tran.reward + self.gamma * np.max(q_next_state_target_network[index])
                 
-                self.actions_append.append(t.action)
+                self.actions_append.append(tran.action)
 
                 output_network[index] = q_current_state_main_network[index]
 
-                output_network[index, t.action] = y
+                output_network[index, tran.action] = y
 
             # Trains the main network
             self.main_network.fit(
@@ -166,7 +168,7 @@ class dqn_agent:
             
             self.sum_rewards_episode.append(np.sum(rewards_episodes))
     
-    def loss(self, y_true, y_pred):
+    def loss(self, y_true: tf.Tensor, y_pred: tf.Tensor):
         """
         Defines the loss function
         y_true is the target and y_pred is predicted by the network
@@ -174,7 +176,9 @@ class dqn_agent:
         s1, s2 = y_true.shape
 
         indices = np.zeros(shape=(s1,s2))
-        indices[:,0] = np.arange(s1),
+
+        for i in range(s1):
+            indices[i, 0] = i
         indices[:,1] = self.actions_append
 
         loss = tf.keras.losses.mean_squared_error(

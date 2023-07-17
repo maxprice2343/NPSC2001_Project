@@ -12,7 +12,7 @@ BATCH_SIZE = 100
 agent = dqn_agent(
     "Network-v0",
     4,
-    4,
+    2,
     GAMMA,
     EPSILON,
     NUM_EPISODES,
