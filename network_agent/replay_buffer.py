@@ -37,3 +37,6 @@ class replay_buffer:
 
     def length(self):
         return len(self.buffer)
+
+    def append(self, new_transition):
+        self.buffer.append(new_transition)
