@@ -43,13 +43,13 @@ class dqn_agent:
         """
         model = tf.keras.Sequential()
         model.add(
-            tf.keras.layers.Dense(4, input_dim=self.state_dimension, activation='relu')
+            tf.keras.layers.Dense(128, input_shape=(4,), activation='relu')
         )
         model.add(
-            tf.keras.layers.Dense(4, activation='relu')
+            tf.keras.layers.Dense(64, activation='relu')
         )
         model.add(
-            tf.keras.layers.Dense(self.action_dimension, activation='linear')
+            tf.keras.layers.Dense(4, activation='linear')
         )
         model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss=self.loss)
 
@@ -62,25 +62,28 @@ class dqn_agent:
         action = None
 
         if index < 1:
-            action = np.random.choice(self.action_dimension)
-        
-        # A random float in the range [0.0, 1.0)
-        r = np.random.random()
-        if index > 200:
-            self.epsilon *= 0.999
-
-        # If r is less than epsilon, then the action is selected randomly,
-        # i.e., the agent will explore the environment
-        # Otherwise, the agent will select the optimal environment (based on
-        # reward)
-        if r < self.epsilon:
-            action = np.random.choice(self.action_dimension)
+            action = np.random.randint(0, 4)
         else:
-            q_values = self.main_network.predict(state[None, :])
-            # Returns the index where q_values has maximum values
-            action = np.random.choice(
-                np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
-            )
+            # A random float in the range [0.0, 1.0)
+            r = np.random.random()
+
+            # After 200 episodes, start to slowly decrease epsilon, which
+            # will decrease the number of actions selected randomly
+            if index > 200:
+                self.epsilon *= 0.999
+
+            # If r is less than epsilon, then the action is selected randomly,
+            # i.e., the agent will explore the environment
+            # Otherwise, the agent will select the optimal environment (based on
+            # reward)
+            if r < self.epsilon:
+                action = np.random.randint(0, 4)
+            else:
+                q_values = self.main_network.predict(state[None, :])
+                # Returns the index where q_values has maximum values
+                action = np.random.choice(
+                    np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
+                )
 
         return action
 
@@ -100,13 +103,13 @@ class dqn_agent:
             for index, tran in enumerate(sample_batch):
                 current_state_batch[index, :] = tran.state
                 next_state_batch[index, :] = tran.next_state
-            
+
             # Uses the target and main networks to predict q values
             q_next_state_target_network = self.target_network.predict(next_state_batch)
             q_current_state_main_network = self.main_network.predict(current_state_batch)
 
             input_network = current_state_batch
-            output_network = np.zeros(shape=(batch_size, 2))
+            output_network = np.zeros(shape=(batch_size, 4))
 
             self.actions_append=[]
             for index, tran in enumerate(sample_batch):
@@ -116,8 +119,6 @@ class dqn_agent:
                     y = tran.reward + self.gamma * np.max(q_next_state_target_network[index])
                 
                 self.actions_append.append(tran.action)
-
-                output_network[index] = q_current_state_main_network[index]
 
                 output_network[index, tran.action] = y
 
@@ -134,6 +135,8 @@ class dqn_agent:
             if(self.update_target_network_count > (self.update_target_network_period - 1)):
                 # Copies the weights to the target network
                 self.target_network.set_weights(self.main_network.get_weights())
+                print("Target network updated")
+                print(f"Counter value {self.update_target_network_count}")
                 self.update_target_network_count = 0
     
     def training_episodes(self):
@@ -142,6 +145,7 @@ class dqn_agent:
         results for training the network.
         """
         for index in range(self.num_episodes):
+            print(f"EPISODE: {index}\n")
             # Stores the rewards for each episode
             rewards_episodes = []
 
@@ -167,15 +171,16 @@ class dqn_agent:
                 current_state = next_state
             
             self.sum_rewards_episode.append(np.sum(rewards_episodes))
+            print(f"Reward: {rewards_episodes}")
     
     def loss(self, y_true: tf.Tensor, y_pred: tf.Tensor):
         """
         Defines the loss function
         y_true is the target and y_pred is predicted by the network
         """
-        s1, s2 = y_true.shape
+        s1, _ = y_true.shape
 
-        indices = np.zeros(shape=(s1,s2))
+        indices = np.zeros(shape=(s1,2))
 
         for i in range(s1):
             indices[i, 0] = i
@@ -185,5 +190,5 @@ class dqn_agent:
             tf.gather_nd(y_true, indices=indices.astype(int)),
             tf.gather_nd(y_pred, indices=indices.astype(int))
         )
-
+        print(loss)
         return loss
