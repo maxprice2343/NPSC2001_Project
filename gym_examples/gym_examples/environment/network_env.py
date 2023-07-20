@@ -12,6 +12,7 @@ import pygame
 
 WINDOW_SIZE = 512
 DISTANCE = 1
+
 REWARD_RECEIVED = 5
 REWARD_MISSED = -10
 REWARD_STEP = -1
@@ -26,10 +27,11 @@ GREEN = (0,255,0)
 class NetworkEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, size=10, num_nodes=4):
+    def __init__(self, render_mode=None, size=10, num_nodes=4, max_steps=50):
         self.size = size
         self.num_nodes = num_nodes
         self.window_size = WINDOW_SIZE
+        self.max_steps = max_steps
 
         # Observations consist of agent location, node locations, and currently
         # active node
@@ -64,14 +66,13 @@ class NetworkEnv(gym.Env):
             )
 
         # Activates a random node. A value of -1 indicates no nodes are active
-        active_number = np.random.randint(-1, self.num_nodes)
-        self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
+        active_number = np.random.randint(0, self.num_nodes)
+        self._active = self._node_locations[active_number]
         self.reward = 0
+        self.step_count = 0
 
         observation = self._get_obs()
         info = self._get_info()
-
-        print(f"reset obs: {observation}\n")
 
         if self.render_mode == "human":
             self._render_frame()
@@ -83,7 +84,8 @@ class NetworkEnv(gym.Env):
         Takes in an action and computes the state of the environment after
         the action is applied
         """
-        self.reward += REWARD_STEP
+        #self.reward += REWARD_STEP
+        terminated = False
 
         direction = self._action_to_direction(action)
 
@@ -98,15 +100,20 @@ class NetworkEnv(gym.Env):
             if np.all(np.equal(node, self._active)):
                 if self._get_distance(node_num) <= DISTANCE:
                     self.reward += REWARD_RECEIVED
-                    active_number = np.random.randint(-1, self.num_nodes)
-                    self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
+                    terminated = True
+                    #active_number = np.random.randint(-1, self.num_nodes)
+                    #self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
             node_num += 1
 
-        terminated = np.all(np.equal(self._active, INACTIVE))
+        self.step_count += 1
+        # If the episode isn't terminated yet then it will terminate if the
+        # maximum number of steps has been reached
+        if not terminated:
+            if self.step_count == self.max_steps:
+                terminated = True
+                self.reward += REWARD_MISSED
         observation = self._get_obs()
         info = self._get_info()
-
-        print(f"step obs: {observation}\n")
 
         if self.render_mode == "human":
             self._render_frame()
