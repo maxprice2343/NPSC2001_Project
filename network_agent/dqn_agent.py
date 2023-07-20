@@ -37,6 +37,20 @@ class dqn_agent:
         self.sum_rewards_episode = []
         self.actions_append = []
 
+    @staticmethod
+    def scheduler(epoch, learning_rate):
+        """
+        Function to adjust the model learning rate based on the epoch.
+        For the first 10 epochs, the learning rate is unchanged, after that the
+        learning rate decreases exponentially
+        """
+        if epoch < 10:
+            new_learning_rate = learning_rate
+        else:
+            new_learning_rate = learning_rate * tf.math.exp(-0.1)
+        return new_learning_rate
+
+
     def create_network(self):
         """
         Creates the network and its layers
@@ -51,7 +65,7 @@ class dqn_agent:
         model.add(
             tf.keras.layers.Dense(4, activation='linear')
         )
-        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001), loss=self.loss)
+        model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01), loss=self.loss)
 
         return model
 
