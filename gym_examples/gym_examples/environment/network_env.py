@@ -13,9 +13,10 @@ import pygame
 WINDOW_SIZE = 512
 DISTANCE = 1
 
-REWARD_RECEIVED = 5
+REWARD_RECEIVED = 10
+REWARD_TOWARDS = 1
+REWARD_AWAY = -1
 REWARD_MISSED = -10
-REWARD_STEP = -1
 
 INACTIVE = np.array([-1, -1])
 
@@ -68,6 +69,9 @@ class NetworkEnv(gym.Env):
         # Activates a random node. A value of -1 indicates no nodes are active
         active_number = np.random.randint(0, self.num_nodes)
         self._active = self._node_locations[active_number]
+
+        self.prev_distance = self._get_distance(self._active, self._agent_location)
+
         self.reward = 0
         self.step_count = 0
 
@@ -84,26 +88,28 @@ class NetworkEnv(gym.Env):
         Takes in an action and computes the state of the environment after
         the action is applied
         """
-        #self.reward += REWARD_STEP
+        reward = 0
         terminated = False
-
         direction = self._action_to_direction(action)
 
         # Moves the agent
         self._agent_location = np.clip(
             self._agent_location + direction, 0, self.size - 1
         )
+        # If the agent has moved closer to the active node since the last step
+        # then it receives a small reward, otherwise it receives a small negative
+        # award
+        if self._get_distance(self._active, self._agent_location) < self.prev_distance:
+            reward += REWARD_TOWARDS
+        else:
+            reward += REWARD_AWAY
+        self.prev_distance = self._get_distance(self._active, self._agent_location)
+
         # Checks whether the agent is within range of the active node and
         # increments the reward if so
-        node_num = 0
-        for node in self._node_locations:
-            if np.all(np.equal(node, self._active)):
-                if self._get_distance(node_num) <= DISTANCE:
-                    self.reward += REWARD_RECEIVED
-                    terminated = True
-                    #active_number = np.random.randint(-1, self.num_nodes)
-                    #self._active = self._node_locations[active_number] if active_number > -1 else INACTIVE
-            node_num += 1
+        if self._get_distance(self._active, self._agent_location) <= DISTANCE:
+            reward += REWARD_RECEIVED
+            terminated = True
 
         self.step_count += 1
         # If the episode isn't terminated yet then it will terminate if the
@@ -112,13 +118,15 @@ class NetworkEnv(gym.Env):
             if self.step_count == self.max_steps:
                 terminated = True
                 self.reward += REWARD_MISSED
+
         observation = self._get_obs()
         info = self._get_info()
 
         if self.render_mode == "human":
             self._render_frame()
 
-        return observation, self.reward, terminated, False, info
+        print(f"REWARD RECEIVED: {reward}")
+        return observation, reward, terminated, False, info
 
     def close(self):
         """
@@ -239,17 +247,17 @@ class NetworkEnv(gym.Env):
         """
         Returns a list containing the distances between the agent and all nodes
         """
-        return {"distances": self._get_distance(i) for i in range(self.num_nodes)}  
+        return {}  
 
-    def _get_distance(self, node_number):
+    @staticmethod
+    def _get_distance(location1, location2):
         """
-        Returns the distance between the agent and a given node
+        Returns the distance between two locations
         """
-        return np.linalg.norm(
-            self._agent_location - self._node_locations[node_number]
-        )
+        return np.linalg.norm(location1 - location2)
 
-    def _action_to_direction(self, action):
+    @staticmethod
+    def _action_to_direction(action):
         """
         Maps an action (integer from 0-3) to a direction (represented using a
         1D numpy array with 2 elements)
