@@ -4,13 +4,15 @@ from replay_buffer import replay_buffer
 import gym_examples
 
 GAMMA = 1
-EPSILON = 0.1
+EPSILON = 0.2
 NUM_EPISODES = 100
 REPLAY_BUFFER_SIZE = 300
 BATCH_SIZE = 100
 
+env = gym.make("Network-v0", size=5, render_mode="human")
+
 agent = dqn_agent(
-    "Network-v0",
+    env,
     4,
     2,
     GAMMA,
