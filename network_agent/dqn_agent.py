@@ -13,7 +13,7 @@ UPDATE_TARGET_NETWORK_PERIOD = 100
 
 class dqn_agent:
     """
-    
+    Defines methods for creating and training a deep q network.
     """
     def __init__(self, env, state_dimension, action_dimension, gamma,
                  epsilon, num_episodes, replay_buffer_size, batch_size):
@@ -37,34 +37,22 @@ class dqn_agent:
         self.sum_rewards_episode = []
         self.actions_append = []
 
-    """@staticmethod
-    def scheduler(epoch, learning_rate):
-        
-        Function to adjust the model learning rate based on the epoch.
-        For the first 10 epochs, the learning rate is unchanged, after that the
-        learning rate decreases exponentially
-        
-        if epoch < 10:
-            new_learning_rate = learning_rate
-        else:
-            new_learning_rate = learning_rate * tf.math.exp(-0.1)
-        return new_learning_rate"""
-
-
     def create_network(self):
         """
         Creates the network and its layers
         """
         model = tf.keras.Sequential()
+        # Adds the layers to the model
         model.add(
-            tf.keras.layers.Dense(128, input_shape=(4,), activation='relu')
+            tf.keras.layers.Dense(128, input_shape=(self.state_dimension,), activation='relu')
         )
         model.add(
             tf.keras.layers.Dense(64, activation='relu')
         )
         model.add(
-            tf.keras.layers.Dense(4, activation='linear')
+            tf.keras.layers.Dense(self.action_dimension, activation='linear')
         )
+        # Compiles the model with the Adam optimizer and custom loss function
         model.compile(optimizer=tf.keras.optimizers.Adam(), loss=self.loss)
 
         return model
@@ -75,6 +63,7 @@ class dqn_agent:
         """
         action = None
 
+        # If it's the first epiisode, all actions are selected randomly
         if index < 1:
             action = np.random.randint(0, 4)
         else:
@@ -88,13 +77,11 @@ class dqn_agent:
 
             # If r is less than epsilon, then the action is selected randomly,
             # i.e., the agent will explore the environment
-            # Otherwise, the agent will select the optimal environment (based on
-            # reward)
+            # Otherwise, the agent will select the optimal action
             if r < self.epsilon:
                 action = np.random.randint(0, 4)
             else:
                 q_values = self.main_network.predict(state[None, :])
-                print(f"q_values: {q_values}")
                 # Returns the index where q_values has maximum values
                 action = np.random.choice(
                     np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
@@ -110,11 +97,13 @@ class dqn_agent:
         # we train the model
         batch_size = self.replay_buffer.batch_size
         if(self.replay_buffer.length() > batch_size):
+            # Takes a random sample from the replay buffer
             sample_batch = self.replay_buffer.sample()
 
-            current_state_batch = np.zeros(shape=(batch_size, 4))
-            next_state_batch = np.zeros(shape=(batch_size, 4))
+            current_state_batch = np.zeros(shape=(batch_size, self.state_dimension))
+            next_state_batch = np.zeros(shape=(batch_size, self.state_dimension))
 
+            # Enumerates through the batch of transitions and assigns
             for index, tran in enumerate(sample_batch):
                 current_state_batch[index, :] = tran.state
                 next_state_batch[index, :] = tran.next_state
@@ -124,7 +113,7 @@ class dqn_agent:
             q_current_state_main_network = self.main_network.predict(current_state_batch)
 
             input_network = current_state_batch
-            output_network = np.zeros(shape=(batch_size, 4))
+            output_network = np.zeros(shape=(batch_size, self.action_dimension))
 
             self.actions_append=[]
             for index, tran in enumerate(sample_batch):
@@ -135,9 +124,10 @@ class dqn_agent:
                 
                 self.actions_append.append(tran.action)
 
+                # Stores the rewards from taking actions
                 output_network[index, tran.action] = y
 
-            # Trains the main network
+            # Trains the main network using the samples from the replay buffer
             self.main_network.fit(
                 input_network,
                 output_network,
@@ -146,18 +136,17 @@ class dqn_agent:
                 epochs=100
             )
 
+            # Periodically copies weights from the main network to the target network
             self.update_target_network_count += 1
             if(self.update_target_network_count > (self.update_target_network_period - 1)):
-                # Copies the weights to the target network
                 self.target_network.set_weights(self.main_network.get_weights())
                 print("Target network updated")
-                print(f"Counter value {self.update_target_network_count}")
                 self.update_target_network_count = 0
     
     def training_episodes(self):
         """
         Runs the simulation 'num_episodes' number of times and stores the
-        results for training the network.
+        results in the replay buffer for training the network.
         """
         for index in range(self.num_episodes):
             print(f"EPISODE: {index}\n")
@@ -173,13 +162,15 @@ class dqn_agent:
 
                 # Steps the environment and stores the reward
                 (next_state, reward, terminal_state, _, _) = self.env.step(action)
+                # Creates a new transition object from the environment current
+                # and next state
                 new_transition = transition(current_state, action, reward, next_state, terminal_state)
                 rewards_episodes.append(reward)
 
                 # Adds the new transition to the replay buffer
                 self.replay_buffer.append(new_transition)
 
-                # Trains the network
+                # Trains the network with the stored episodes
                 self.train_network()
 
                 # Sets the current state for the next step
@@ -194,12 +185,13 @@ class dqn_agent:
         """
         s1, _ = y_true.shape
 
+        # Indices is a 2d array that is used to index into y_true and y_pred
         indices = np.zeros(shape=(s1,2))
-
         for i in range(s1):
             indices[i, 0] = i
         indices[:,1] = self.actions_append
 
+        # Calculates the mean squared error between y_true and y_pred
         loss = tf.keras.losses.mean_squared_error(
             tf.gather_nd(y_true, indices=indices.astype(int)),
             tf.gather_nd(y_pred, indices=indices.astype(int))

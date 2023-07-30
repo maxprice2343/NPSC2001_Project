@@ -1,8 +1,6 @@
 """
 Defines the environment that the RL agent interacts with.
 Code adapted from https://github.com/Farama-Foundation/gym-examples.
-Environment is adapted from gym-examples/gym-examples/envs/grid_world.py
-environment.
 """
 
 import gymnasium as gym
@@ -66,10 +64,9 @@ class NetworkEnv(gym.Env):
                 excludes=np.concatenate((self._agent_location[np.newaxis, :], self._node_locations[:i]), axis=0)
             )
 
-        # Activates a random node. A value of -1 indicates no nodes are active
-        active_number = np.random.randint(0, self.num_nodes)
-        self._active = self._node_locations[active_number]
-
+        # Selects a random node to become active
+        self._active = np.random.choice(self._node_locations)
+        # Stores the distance between the agent and the previously active node
         self.prev_distance = self._get_distance(self._active, self._agent_location)
 
         self.reward = 0
@@ -97,24 +94,26 @@ class NetworkEnv(gym.Env):
             self._agent_location + direction, 0, self.size - 1
         )
         # If the agent has moved closer to the active node since the last step
-        # then it receives a small reward, otherwise it receives a small negative
-        # award
-        if self._get_distance(self._active, self._agent_location) < self.prev_distance:
+        # then it receives a small positive reward, otherwise it receives a small
+        # negative award
+        current_distance = self._get_distance(self._active, self._agent_location)
+        if current_distance < self.prev_distance:
             reward += REWARD_TOWARDS
         else:
             reward += REWARD_AWAY
-        self.prev_distance = self._get_distance(self._active, self._agent_location)
+        self.prev_distance = current_distance
 
         # Checks whether the agent is within range of the active node and
-        # increments the reward if so
+        # adds to the reward if it is
         if self._get_distance(self._active, self._agent_location) <= DISTANCE:
             reward += REWARD_RECEIVED
             terminated = True
 
         self.step_count += 1
-        # If the episode isn't terminated yet then it will terminate if the
-        # maximum number of steps has been reached
+        # If the episode isn't terminated yet
         if not terminated:
+            # If the maximum number of steps has been reached then the episode
+            # is terminated
             if self.step_count == self.max_steps:
                 terminated = True
                 self.reward += REWARD_MISSED
@@ -125,7 +124,6 @@ class NetworkEnv(gym.Env):
         if self.render_mode == "human":
             self._render_frame()
 
-        print(f"REWARD RECEIVED: {reward}")
         return observation, reward, terminated, False, info
 
     def close(self):
@@ -137,9 +135,10 @@ class NetworkEnv(gym.Env):
             pygame.quit()
 
     def render(self):
+        """Used by simulate_trained_model.py to convert the environment in
+        to an rgb_array for MoviePy to create a video"""
         if self.render_mode == "rgb_array":
             return self._render_frame()
-        
 
     def _render_frame(self):
         """
@@ -154,14 +153,16 @@ class NetworkEnv(gym.Env):
             self.window = pygame.display.set_mode((self.window_size, self.window_size))
         if self.clock is None and self.render_mode == "human":
             self.clock = pygame.time.Clock()
-        
+
+        # Initializes the Surface and fills it with white
         canvas = pygame.Surface((self.window_size, self.window_size))
         canvas.fill(WHITE)
-        # The size of each cell in pixels
+        # pix_square_size is the size of each cell in pixels
         pix_square_size = (self.window_size / self.size)
 
         # Drawing the nodes
         for i, node in enumerate(self._node_locations):
+            # Colours the active node green and the others red
             colour = GREEN if np.all(np.equal(node, self._active)) else RED
 
             pygame.draw.rect(
@@ -182,7 +183,7 @@ class NetworkEnv(gym.Env):
             pix_square_size / 3
         )
 
-        # Add grid lines
+        # Adding grid lines
         for i in range(self.size + 1):
             # Horizontal lines
             pygame.draw.line(
@@ -245,7 +246,6 @@ class NetworkEnv(gym.Env):
                     sub = y[idx]
                     res = np.all(np.equal(sub, x))
                     idx += 1
-
         return res
 
     def _get_obs(self):

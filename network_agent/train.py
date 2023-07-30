@@ -8,13 +8,15 @@ EPSILON = 0.1
 NUM_EPISODES = 100
 REPLAY_BUFFER_SIZE = 300
 BATCH_SIZE = 100
+STATE_DIMENSION = 4
+ACTION_DIMENSION = 4
 
 env = gym.make("Network-v0", size=5, render_mode="human")
 
 agent = dqn_agent(
     env,
-    4,
-    2,
+    STATE_DIMENSION,
+    ACTION_DIMENSION,
     GAMMA,
     EPSILON,
     NUM_EPISODES,
