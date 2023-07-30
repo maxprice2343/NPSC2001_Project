@@ -186,7 +186,6 @@ class dqn_agent:
                 current_state = next_state
             
             self.sum_rewards_episode.append(np.sum(rewards_episodes))
-            print(f"Reward: {rewards_episodes}")
     
     def loss(self, y_true: tf.Tensor, y_pred: tf.Tensor):
         """

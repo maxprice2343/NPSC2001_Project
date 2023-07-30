@@ -26,7 +26,7 @@ BLUE = (0,0,255)
 GREEN = (0,255,0)
 
 class NetworkEnv(gym.Env):
-    metadata = {"render_modes": ["human"], "render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
     def __init__(self, render_mode=None, size=10, num_nodes=4, max_steps=50):
         self.size = size
@@ -136,10 +136,16 @@ class NetworkEnv(gym.Env):
             pygame.display.quit()
             pygame.quit()
 
+    def render(self):
+        if self.render_mode == "rgb_array":
+            return self._render_frame()
+        
+
     def _render_frame(self):
         """
-        Renders a frame (using pygame) representing the state of the
-        environment and updates the window
+        Creates a frame (using pygame) representing the state of the
+        environment.
+        If the render mode is human, the window is updated with the frame.
         """
         # Initializes pygame, display, and clock if they haven't been already
         if self.window is None and self.render_mode == "human":
@@ -203,6 +209,11 @@ class NetworkEnv(gym.Env):
 
             # Keeps rendering at the predfined framerate
             self.clock.tick(self.metadata["render_fps"])
+        else:
+            return np.transpose(
+                np.array(pygame.surfarray.pixels3d(canvas)),
+                axes=(1, 0, 2)
+            )
 
     def _generate_random_position(self, excludes=np.array([])):
         """
