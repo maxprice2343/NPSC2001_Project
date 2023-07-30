@@ -14,3 +14,5 @@ gym_examples.egg-info
 Problem Description.md
 Problem Description.pdf
 Images/
+stored_video/rl-video-episode-0.meta.json
+trained_model_temp.h5
