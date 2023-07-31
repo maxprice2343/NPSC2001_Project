@@ -17,24 +17,26 @@ model = tf.keras.models.load_model(
 env = gym.make("Network-v0", size=5, render_mode="rgb_array")
 
 # Initializes the environment
-state, _ = env.reset()
+current_state, _ = env.reset()
 
 # Sets up the environment to record
 video_length = 400
 env = gym.wrappers.RecordVideo(env, 'stored_video', video_length=video_length)
 
-terminal_state = False
-sum_obtained_rewards = 0
 # Steps until the environment is in a terminal state
-while not terminal_state:
-    # Uses the model to generate q values based on the current state
-    q_values = model.predict(state[None, :])
+for _ in range(10):
+    terminal_state = False
+    sum_obtained_rewards = 0
+    while not terminal_state:
+        # Uses the model to generate q values based on the current state
+        q_values = model.predict(current_state[None, :])
 
-    # Selects the optimal action based on the q values
-    action = np.random.choice(
-        np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
-    )
-    current_state, reward, terminal_state, _, _ = env.step(action)
-    sum_obtained_rewards += reward
-env.reset()
+        # Selects the optimal action based on the q values
+        action = np.random.choice(
+            np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
+        )
+        current_state, reward, terminal_state, _, _ = env.step(action)
+        sum_obtained_rewards += reward
+    current_state, _ = env.reset()
+
 env.close()
