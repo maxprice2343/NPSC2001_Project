@@ -23,7 +23,11 @@ agent = dqn_agent(
     REPLAY_BUFFER_SIZE,
     BATCH_SIZE
 )
-agent.training_episodes()
+try:
+    agent.training_episodes()
+except KeyboardInterrupt:
+    print("Training interrupted")
+
 print(agent.sum_rewards_episode)
 
 agent.main_network.summary()
