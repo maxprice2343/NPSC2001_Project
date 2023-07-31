@@ -65,7 +65,7 @@ class NetworkEnv(gym.Env):
             )
 
         # Selects a random node to become active
-        self._active = np.random.choice(self._node_locations)
+        self._active = self._node_locations[np.random.randint(0, self.num_nodes)]
         # Stores the distance between the agent and the previously active node
         self.prev_distance = self._get_distance(self._active, self._agent_location)
 
