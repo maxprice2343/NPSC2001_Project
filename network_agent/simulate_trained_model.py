@@ -22,6 +22,7 @@ else:
 
     # Initializes the environment
     current_state, _ = env.reset()
+    reward_sum = 0
 
     terminal_state = False
     while not terminal_state:
@@ -33,4 +34,8 @@ else:
             np.where(q_values[0,:]==np.max(q_values[0,:]))[0]
         )
         current_state, reward, terminal_state, _, _ = env.step(action)
+        reward_sum += reward
+        print(f"Action {action}: Reward: {reward}")
+
+    print(f"Reward sum: {reward_sum}")
     env.close()
