@@ -10,9 +10,7 @@ __pycache__
 #Ignores files generated from installing gym_examples as a package
 gym_examples.egg-info
 
-# Ignores markdown file and Images
+# Ignores markdown files
 Problem Description.md
 Problem Description.pdf
-Images/
 stored_video/rl-video-episode-0.meta.json
-trained_model_temp.h5
