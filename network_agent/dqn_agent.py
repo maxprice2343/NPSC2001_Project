@@ -44,10 +44,10 @@ class dqn_agent:
         model = tf.keras.Sequential()
         # Adds the layers to the model
         model.add(
-            tf.keras.layers.Dense(16, input_shape=(self.state_dimension,), activation='relu')
+            tf.keras.layers.Dense(16, input_shape=(self.state_dimension,), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1))
         )
         model.add(
-            tf.keras.layers.Dense(8, activation='relu')
+            tf.keras.layers.Dense(8, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1))
         )
         model.add(
             tf.keras.layers.Dense(self.action_dimension, activation='linear')
