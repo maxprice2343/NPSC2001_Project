@@ -67,7 +67,6 @@ class NetworkEnv(gym.Env):
         # Stores the distance between the agent and the previously active node
         self.prev_distance = self._get_distance(self._active, self._agent_location)
 
-        self.reward = 0
         self.step_count = 0
 
         observation = self._get_obs()
@@ -114,7 +113,7 @@ class NetworkEnv(gym.Env):
             # is terminated
             if self.step_count == self.max_steps:
                 terminated = True
-                self.reward += REWARD_MISSED
+                reward += REWARD_MISSED
 
         observation = self._get_obs()
         info = self._get_info()
