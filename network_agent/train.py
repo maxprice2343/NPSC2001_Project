@@ -28,7 +28,17 @@ try:
 except KeyboardInterrupt:
     print("Training interrupted")
 
-print(agent.sum_rewards_episode)
-
 agent.main_network.summary()
-agent.main_network.save("trained_model_temp.h5")
+
+# Prompts the user if they want to save the model or not
+save = input("Do you want to save the model (y/n)?")
+
+# Repeats until the user inputs a valid option
+while(not(save == "y" or save == "n")):
+    save = input("Do you want to save the model (y/n)?")
+
+# If the user wants to save the model, prompts them to enter a file path
+# to save it to
+if(save == "y"):
+    path = input("Enter file path:")
+    agent.main_network.save(path)
