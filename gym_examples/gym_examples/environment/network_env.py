@@ -7,6 +7,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
+from node import node
 
 WINDOW_SIZE = 512
 DISTANCE = 1
@@ -24,17 +25,20 @@ GREEN = (0,255,0)
 class NetworkEnv(gym.Env):
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    def __init__(self, render_mode=None, size=10, num_nodes=4, max_steps=50):
+    def __init__(self, render_mode=None, size=10, num_nodes=4, max_steps=50, range=1, time=50):
         self.size = size
         self.num_nodes = num_nodes
         self.window_size = WINDOW_SIZE
         self.max_steps = max_steps
+        self.range = range
+        self.time = time
 
         # Observations consist of agent location, node locations, and currently
         # active node
         self.observation_space = spaces.Box(-1, self.size-1, (4,), dtype=int)
         # Agent can move up, down, left, or right
         self.action_space = spaces.Discrete(4)
+        self.nodes = []
 
         # Ensures the provided render mode is None (i.e., environment is not to
         # be rendered) or part of the array defining valid render types
@@ -56,16 +60,18 @@ class NetworkEnv(gym.Env):
 
         # Randomly generates node locations until they are not equal to the
         # agent location or other node locations
-        self._node_locations = np.empty((self.num_nodes, 2), dtype=int)
+        node_locations = np.zeros(shape=(self.num_nodes, 2), dtype=int)
+        self.nodes = []
         for i in range(self.num_nodes):
-            self._node_locations[i] = self._generate_random_position(
-                excludes=np.concatenate((self._agent_location[np.newaxis, :], self._node_locations[:i]), axis=0)
+            node_locations[i] = self._generate_random_position(
+                excludes=np.concatenate((self._agent_location[np.newaxis, :], node_locations[:i]), axis=0)
             )
+            self.nodes.append(node(node_locations[i], self.range, self.time))
 
         # Selects a random node to become active
-        self._active = self._node_locations[np.random.randint(0, self.num_nodes)]
+        self._active = self.nodes[np.random.randint(0, self.num_nodes)]
         # Stores the distance between the agent and the previously active node
-        self.prev_distance = self._get_distance(self._active, self._agent_location)
+        self.prev_distance = self._get_distance(self._active.location, self._agent_location)
 
         self.step_count = 0
 
@@ -93,7 +99,7 @@ class NetworkEnv(gym.Env):
         # If the agent has moved closer to the active node since the last step
         # then it receives a small positive reward, otherwise it receives a small
         # negative award
-        current_distance = self._get_distance(self._active, self._agent_location)
+        current_distance = self._get_distance(self._active.location, self._agent_location)
         if current_distance < self.prev_distance:
             reward += REWARD_TOWARDS
         else:
@@ -102,7 +108,7 @@ class NetworkEnv(gym.Env):
 
         # Checks whether the agent is within range of the active node and
         # adds to the reward if it is
-        if self._get_distance(self._active, self._agent_location) <= DISTANCE:
+        if self._get_distance(self._active.location, self._agent_location) <= DISTANCE:
             reward += REWARD_RECEIVED
             terminated = True
 
@@ -158,16 +164,16 @@ class NetworkEnv(gym.Env):
         pix_square_size = (self.window_size / self.size)
 
         # Drawing the nodes
-        for i, node in enumerate(self._node_locations):
+        for i, node in enumerate(self.nodes):
             # Colours the active node green and the others red
-            colour = GREEN if np.all(np.equal(node, self._active)) else RED
+            colour = GREEN if np.all(np.equal(node.location, self._active.location)) else RED
 
             pygame.draw.rect(
                 canvas,
                 colour,
                 pygame.Rect(
-                    (pix_square_size * self._node_locations[i][0],
-                     pix_square_size * self._node_locations[i][1]),
+                    (pix_square_size * node.location[0],
+                     pix_square_size * node.location[1]),
                     (pix_square_size, pix_square_size)
                 )
             )
@@ -249,7 +255,7 @@ class NetworkEnv(gym.Env):
         """
         Returns the environment observations
         """
-        return np.concatenate((self._agent_location, self._active))
+        return np.concatenate((self._agent_location, self._active.location))
     
     def _get_info(self):
         """
