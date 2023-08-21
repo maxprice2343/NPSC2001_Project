@@ -5,3 +5,9 @@ register(
     entry_point="gym_examples.environment:NetworkEnv",
     max_episode_steps=300
 )
+
+register(
+    id="Timed-v0",
+    entry_point="gym_examples.environment:TimedEnv",
+    max_episode_steps=300
+)

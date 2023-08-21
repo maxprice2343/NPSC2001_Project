@@ -8,7 +8,7 @@ test.py
 __pycache__
 
 #Ignores files generated from installing gym_examples as a package
-gym_examples.egg-info
+environments.egg-info
 
 # Ignores markdown files
 Problem Description.md
