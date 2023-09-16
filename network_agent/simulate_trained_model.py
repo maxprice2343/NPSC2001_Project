@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import gymnasium as gym
 from dqn_agent import dqn_agent
+import gym_environments
 import pathlib
 import sys
 

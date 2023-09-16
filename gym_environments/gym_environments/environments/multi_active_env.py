@@ -12,7 +12,7 @@ from gymnasium import spaces
 import numpy as np
 import pygame
 from .node import node
-from gym_examples.environment.network_env import NetworkEnv
+from gym_environments.environments.network_env import NetworkEnv
 
 WINDOW_SIZE = 512
 DISTANCE = 1
@@ -68,7 +68,7 @@ class MultiActiveEnv(NetworkEnv):
         Initializes a new episode of the environment
         """
         # Seeds the random number generator
-        super().reset(seed=seed)
+        super(NetworkEnv).reset(seed=seed)
 
         # Generates the random agent location
         self._agent_location = self._generate_random_location()

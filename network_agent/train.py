@@ -1,7 +1,7 @@
 import gymnasium as gym
 from dqn_agent import dqn_agent
 from replay_buffer import replay_buffer
-import gym_examples
+import gym_environments
 
 GAMMA = 1
 EPSILON = 0.1

@@ -6,7 +6,7 @@ Adapted from https://aleksandarhaber.com/deep-q-networks-dqn-in-python-from-scra
 import numpy as np
 import tensorflow as tf
 import gymnasium as gym
-import gym_examples
+import gym_environments
 from replay_buffer import transition, replay_buffer
 
 UPDATE_TARGET_NETWORK_PERIOD = 100
