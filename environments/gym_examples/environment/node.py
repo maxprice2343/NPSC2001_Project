@@ -6,7 +6,7 @@ This allows an environment to define multiple nodes of different types.
 import numpy as np
 
 class node:
-    def __init__(self, location, range, time):
+    def __init__(self, location, range, time=0):
         self.range = range
         self.location = location
         self.time = time
