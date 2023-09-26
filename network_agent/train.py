@@ -6,12 +6,13 @@ import gym_environments
 GAMMA = 1
 EPSILON = 0.1
 NUM_EPISODES = 500
-REPLAY_BUFFER_SIZE = 300
-BATCH_SIZE = 100
-STATE_DIMENSION = 4
+REPLAY_BUFFER_SIZE = 2000
+BATCH_SIZE = 200
+STATE_DIMENSION = 22
 ACTION_DIMENSION = 4
 
-env = gym.make("Network-v0", size=5, render_mode="human")
+env = gym.make("MultiNodes-v0", render_mode=None, max_steps=50, min_range=2,
+               max_range=2, min_time=10, max_time=15)
 
 agent = dqn_agent(
     env,

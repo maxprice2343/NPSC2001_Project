@@ -1,8 +1,3 @@
-"""
-Defines the dqn_agent class that creates the neural network.
-Adapted from https://aleksandarhaber.com/deep-q-networks-dqn-in-python-from-scratch-by-using-openai-gym-and-tensorflow-reinforcement-learning-tutorial/
-"""
-
 import numpy as np
 import tensorflow as tf
 import gymnasium as gym
@@ -12,17 +7,17 @@ from replay_buffer import transition, replay_buffer
 
 UPDATE_TARGET_NETWORK_PERIOD = 100
 
-class dqn_agent:
-    """
-    Defines methods for creating and training a deep q network.
-    """
-    def __init__(self, env, state_dimension, action_dimension, gamma,
+class dqn_agent_multi:
+    def __init__(self, env, location_shape, time_shape, range_shape, state_dimension, action_dimension, gamma,
                  epsilon, num_episodes, replay_buffer_size, batch_size):
         self.env = FlattenObservation(env)
         self.gamma = gamma
         self.epsilon = epsilon
         self.num_episodes = num_episodes
 
+        self.location_shape = location_shape
+        self.time_shape = time_shape
+        self.range_shape = range_shape
         self.state_dimension = state_dimension
         self.action_dimension = action_dimension
 
@@ -37,47 +32,63 @@ class dqn_agent:
 
         self.sum_rewards_episode = []
         self.actions_append = []
-
+    
     def create_network(self):
         """
-        Creates the network and its layers
+        Creates the network layers and compiles it
         """
-        model = tf.keras.Sequential()
-        # Adds the layers to the model
-        model.add(
-            tf.keras.layers.Dense(64, input_shape=(self.state_dimension,), activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1))
-        )
-        model.add(
-            tf.keras.layers.Dense(32, activation='relu', kernel_regularizer=tf.keras.regularizers.l2(0.1))
-        )
-        model.add(
-            tf.keras.layers.Dense(self.action_dimension, activation='linear')
-        )
-        # Compiles the model with the Adam optimizer and custom loss function
+        # Location branch
+        location_input = tf.keras.Input(shape=self.location_shape)
+        x = tf.keras.layers.Dense(8, activation='relu')(location_input)
+        x = tf.keras.layers.Dense(4, activation='relu')(x)
+        self.location_model = tf.keras.Model(inputs=location_input, outputs=x)
+
+        # Time branch
+        time_input = tf.keras.Input(shape=self.time_shape)
+        y = tf.keras.layers.Dense(8, activation='relu')(time_input)
+        y = tf.keras.layers.Dense(4, activation='relu')(y)
+        self.time_model = tf.keras.Model(inputs=time_input, outputs=y)
+
+        # Range branch
+        range_input = tf.keras.Input(shape=self.range_shape)
+        z = tf.keras.layers.Dense(8, activation='relu')(range_input)
+        z = tf.keras.layers.Dense(4, activation='relu')(z)
+        self.range_model = tf.keras.Model(inputs=range_input, outputs=z)
+
+        # Combines the outputs of the 3 layers into 1
+        combined = tf.keras.layers.concatenate([x.output, y.output, z.output])
+
+        # Creates the final 2 layers including the output layer
+        final = tf.keras.layers.Dense(8, activation='relu')(combined)
+        final = tf.keras.layers.Dense(self.action_dimension, activation='linear')(final)
+
+        model = tf.keras.Model(inputs=[x.input, y.input, z.input], outputs=final)
         model.compile(optimizer=tf.keras.optimizers.Adam(), loss=self.loss)
 
         return model
-
+    
     def select_action(self, state, index):
         """
         Selects an action based on the current environment state
         """
         action = None
 
-        # If it's the first episode, all actions are selected randomly
+        # If it's the first epiisode, all actions are selected randomly
         if index < 1:
             action = np.random.randint(0, 4)
         else:
+            # A random float in the range [0.0, 1.0)
+            r = np.random.random()
 
             # After 200 episodes, start to slowly decrease epsilon, which
             # will decrease the number of actions selected randomly
             if index > 200:
                 self.epsilon *= 0.999
 
-            # The value of epsilon determines if the action is selected
-            # randomly (i.e., the agent will explore the environment) or if the
-            # action is selected based on the network
-            if np.random.random() < self.epsilon:
+            # If r is less than epsilon, then the action is selected randomly,
+            # i.e., the agent will explore the environment
+            # Otherwise, the agent will select the optimal action
+            if r < self.epsilon:
                 action = np.random.randint(0, 4)
             else:
                 q_values = self.main_network.predict(state[None, :])
@@ -161,6 +172,7 @@ class dqn_agent:
 
                 # Steps the environment and stores the reward
                 (next_state, reward, terminal_state, _, _) = self.env.step(action)
+                print(f"next_state = {next_state}")
                 # Creates a new transition object from the environment current
                 # and next state
                 new_transition = transition(current_state, action, reward, next_state, terminal_state)
@@ -195,4 +207,5 @@ class dqn_agent:
             tf.gather_nd(y_true, indices=indices.astype(int)),
             tf.gather_nd(y_pred, indices=indices.astype(int))
         )
+        print(loss)
         return loss

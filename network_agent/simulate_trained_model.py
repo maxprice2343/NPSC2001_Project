@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import gymnasium as gym
+from gymnasium.wrappers.flatten_observation import FlattenObservation
 from dqn_agent import dqn_agent
 import gym_environments
 import pathlib
@@ -19,7 +20,9 @@ except OSError:
     print("Invalid path provided")
 else:
     # Creates the environment
-    env = gym.make("Network-v0", size=10, render_mode="human")
+    env = gym.make("MultiNodes-v0", render_mode="human", max_steps=50, min_range=1,
+                    max_range=3, min_time=10, max_time=15)
+    env = FlattenObservation(env)
 
     # Initializes the environment
     current_state, _ = env.reset()
